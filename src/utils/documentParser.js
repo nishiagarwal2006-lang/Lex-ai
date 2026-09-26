@@ -25,12 +25,12 @@ export async function parseFile(file) {
 async function parsePdf(file) {
   const arrayBuffer = await file.arrayBuffer();
 
-  // Dynamically import to avoid worker issues during SSR/build
-  const pdfjs = await import('pdfjs-dist/build/pdf.mjs');
-  const worker = await import('pdfjs-dist/build/pdf.worker.mjs');
+  const pdfjs = await import('pdfjs-dist');
 
-  // Set worker URL
-  pdfjs.GlobalWorkerOptions.workerSrc = worker;
+  // Derive a clean major.minor.patch version for the CDN URL
+  const ver = (pdfjs.version || '').split('-')[0];
+  pdfjs.GlobalWorkerOptions.workerSrc =
+    `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${ver}/pdf.worker.min.mjs`;
 
   const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
   let fullText = '';

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   analyzeRisk,
   simplifyClauses,
@@ -7,12 +7,20 @@ import {
   generateChecklist,
 } from '../services/grokService.js';
 
+/**
+ * Each hook instance tracks its OWN in-flight request count so that
+ * multiple concurrent calls (e.g. the three parallel calls in Analyze) each
+ * maintain independent loading state without clobbering each other.
+ */
 export function useGrokAPI() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
+  // useRef so we can mutate without triggering re-renders mid-flight
+  const inFlight = useRef(0);
 
   const execute = useCallback(async (fn, ...args) => {
+    inFlight.current += 1;
     setLoading(true);
     setError(null);
     try {
@@ -24,7 +32,8 @@ export function useGrokAPI() {
       setError(message);
       throw err;
     } finally {
-      setLoading(false);
+      inFlight.current -= 1;
+      if (inFlight.current === 0) setLoading(false);
     }
   }, []);
 

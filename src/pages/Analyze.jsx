@@ -12,12 +12,18 @@ import { useGrokAPI } from '../hooks/useGrokAPI.js';
 
 export default function Analyze() {
   const { text, fileName, parsing, parseError, parse, setManualText, reset } = useDocumentParser();
-  const { analyze, simplify, checklist, ask, loading } = useGrokAPI();
+  // Each feature gets its own hook instance so their loading states are independent
+  const { analyze, loading: riskLoading } = useGrokAPI();
+  const { simplify, loading: clauseLoading } = useGrokAPI();
+  const { checklist: generateChecklist, loading: checklistLoading } = useGrokAPI();
+  const { ask, loading: qaLoading } = useGrokAPI();
 
   const [riskData, setRiskData] = useState(null);
   const [clauseData, setClauseData] = useState(null);
   const [checklistData, setChecklistData] = useState(null);
   const [analyzed, setAnalyzed] = useState(false);
+
+  const anyLoading = riskLoading || clauseLoading || checklistLoading;
 
   const handleAnalyze = useCallback(async () => {
     if (!text || text.trim().length < 20) {
@@ -27,28 +33,31 @@ export default function Analyze() {
 
     setAnalyzed(true);
 
-    // Run all three analyses
-    try {
-      const risk = await analyze(text);
-      setRiskData(risk);
-    } catch (err) {
-      toast.error(`Risk analysis failed: ${err.message}`);
+    // Fire all three analyses in parallel — each has its own loading state
+    const [riskResult, clauseResult, checklistResult] = await Promise.allSettled([
+      analyze(text),
+      simplify(text),
+      generateChecklist(text),
+    ]);
+
+    if (riskResult.status === 'fulfilled') {
+      setRiskData(riskResult.value);
+    } else {
+      toast.error(`Risk analysis failed: ${riskResult.reason?.message}`);
     }
 
-    try {
-      const clauses = await simplify(text);
-      setClauseData(clauses);
-    } catch (err) {
-      toast.error(`Clause simplification failed: ${err.message}`);
+    if (clauseResult.status === 'fulfilled') {
+      setClauseData(clauseResult.value);
+    } else {
+      toast.error(`Clause simplification failed: ${clauseResult.reason?.message}`);
     }
 
-    try {
-      const checklist = await checklist(text);
-      setChecklistData(checklist);
-    } catch (err) {
-      toast.error(`Checklist generation failed: ${err.message}`);
+    if (checklistResult.status === 'fulfilled') {
+      setChecklistData(checklistResult.value);
+    } else {
+      toast.error(`Checklist generation failed: ${checklistResult.reason?.message}`);
     }
-  }, [text, analyze, simplify, checklist]);
+  }, [text, analyze, simplify, generateChecklist]);
 
   const handleReset = () => {
     reset();
@@ -73,7 +82,10 @@ export default function Analyze() {
           riskData={riskData}
           clauseData={clauseData}
           checklistData={checklistData}
-          loading={loading && !riskData}
+          riskLoading={riskLoading}
+          clauseLoading={clauseLoading}
+          checklistLoading={checklistLoading}
+          qaLoading={qaLoading}
           onAsk={ask}
         />
       </div>
@@ -122,10 +134,10 @@ export default function Analyze() {
             <NeonButton
               variant="primary"
               onClick={handleAnalyze}
-              disabled={!text || text.trim().length < 20 || parsing || loading}
+              disabled={!text || text.trim().length < 20 || parsing || anyLoading}
               className="flex items-center gap-2"
             >
-              {loading ? (
+              {anyLoading ? (
                 <>
                   <Spinner size="sm" /> Analyzing...
                 </>

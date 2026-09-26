@@ -74,9 +74,11 @@ function ChatMessage({ message, isUser, isTyping }) {
   );
 }
 
-export default function QASection({ documentText, onAsk, loading }) {
+export default function QASection({ documentText, onAsk }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  // Own loading state — not shared with parent's other API calls
+  const [loading, setLoading] = useState(false);
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -87,10 +89,11 @@ export default function QASection({ documentText, onAsk, loading }) {
 
   const handleSend = async (question) => {
     const q = question || input.trim();
-    if (!q || !documentText) return;
+    if (!q || !documentText || loading) return;
 
     setMessages((prev) => [...prev, q]);
     setInput('');
+    setLoading(true);
 
     try {
       const result = await onAsk(documentText, q);
@@ -100,6 +103,8 @@ export default function QASection({ documentText, onAsk, loading }) {
         ...prev,
         { answer: 'Sorry, I could not process your question. Please try again.', confidence: 0 },
       ]);
+    } finally {
+      setLoading(false);
     }
   };
 

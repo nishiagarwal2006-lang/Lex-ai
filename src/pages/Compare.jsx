@@ -28,11 +28,11 @@ export default function Compare() {
       return;
     }
 
-    setCompared(true);
-
     try {
       const result = await compare(docA.text, docB.text);
       setCompareData(result);
+      // Only transition to result view after data is ready
+      setCompared(true);
     } catch (err) {
       toast.error(`Comparison failed: ${err.message}`);
     }

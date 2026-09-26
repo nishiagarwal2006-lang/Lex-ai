@@ -12,7 +12,7 @@ import { MessageSquareText } from 'lucide-react';
 
 export default function QA() {
   const { text, fileName, parsing, parse, setManualText, reset } = useDocumentParser();
-  const { ask, loading } = useGrokAPI();
+  const { ask } = useGrokAPI();
   const [ready, setReady] = useState(false);
 
   const handleReady = useCallback(() => {
@@ -43,7 +43,7 @@ export default function QA() {
           </NeonButton>
         </div>
 
-        <QASection documentText={text} onAsk={ask} loading={loading} />
+        <QASection documentText={text} onAsk={ask} />
       </div>
     );
   }
