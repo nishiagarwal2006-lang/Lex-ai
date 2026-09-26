@@ -1,0 +1,175 @@
+{
+  "name": "lexai-legal-platform",
+  "displayName": "LexAI",
+  "tagline": "AI-Powered Legal Intelligence Platform",
+  "description": "Understand any legal document in seconds. LexAI provides risk analysis, clause simplification, document comparison, smart Q&A, and action checklists — powered by the Groq API.",
+  "version": "1.0.0",
+  "license": "MIT",
+  "homepage": "",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+
+  "stack": {
+    "runtime": "browser",
+    "language": "JavaScript (ES Modules)",
+    "framework": "React 18",
+    "bundler": "Vite 5",
+    "styling": "Tailwind CSS 3",
+    "testRunner": "Vitest 4",
+    "linter": "ESLint 9"
+  },
+
+  "ai": {
+    "provider": "Groq",
+    "model": "openai/gpt-oss-120b",
+    "endpoint": "https://api.groq.com/openai/v1/chat/completions",
+    "responseFormat": "json_object",
+    "maxInputChars": 12000,
+    "maxTokensDefault": 4000
+  },
+
+  "auth": {
+    "provider": "Firebase",
+    "method": "Google Sign-In (OAuth 2.0 PKCE)",
+    "required": false,
+    "note": "Optional — core analysis features are available without sign-in"
+  },
+
+  "features": [
+    {
+      "id": "risk-analysis",
+      "name": "Risk Analysis",
+      "route": "/analyze",
+      "description": "Scores overall document risk 0–100 and flags individual clauses as HIGH / MEDIUM / LOW with plain-English explanations and actionable recommendations.",
+      "aiFunction": "analyzeRisk"
+    },
+    {
+      "id": "clause-simplifier",
+      "name": "Clause Simplifier",
+      "route": "/analyze",
+      "description": "Translates legalese into plain English. Classifies clauses, extracts key dates and deadlines, and summarises rights and obligations.",
+      "aiFunction": "simplifyClauses"
+    },
+    {
+      "id": "document-comparison",
+      "name": "Document Comparison",
+      "route": "/compare",
+      "description": "Side-by-side AI diff between two documents. Detects added, removed, and modified sections with a similarity score and per-change significance rating.",
+      "aiFunction": "compareDocuments"
+    },
+    {
+      "id": "smart-qa",
+      "name": "Smart Q&A",
+      "route": "/qa",
+      "description": "Ask any plain-English question about a loaded document. AI responds with clause references and a confidence score.",
+      "aiFunction": "askQuestion"
+    },
+    {
+      "id": "action-checklist",
+      "name": "Action Checklist",
+      "route": "/analyze",
+      "description": "Generates a prioritised action list (Immediate / Short-term / Long-term), pre-drafted lawyer questions, and red-flag warnings.",
+      "aiFunction": "generateChecklist"
+    }
+  ],
+
+  "documentSupport": {
+    "formats": ["pdf", "docx", "txt"],
+    "parsing": "client-side only (PDF.js + Mammoth)",
+    "note": "Raw file bytes are never transmitted to any server"
+  },
+
+  "security": {
+    "apiKeyStorage": "Vite environment variable (build-time injection, never committed)",
+    "inputSanitisation": true,
+    "inputTruncation": "12000 characters",
+    "promptInjectionMitigation": "response_format: json_object enforced on every call",
+    "xssProtection": "React virtual DOM (no dangerouslySetInnerHTML)",
+    "privacyModel": "All document parsing is client-side; no file data leaves the browser"
+  },
+
+  "testing": {
+    "framework": "Vitest",
+    "environment": "jsdom",
+    "offline": true,
+    "testFiles": [
+      "src/utils/lexai.test.js",
+      "src/utils/riskScorer.test.js"
+    ],
+    "coverage": {
+      "riskScorer": {
+        "functions": ["severityToColor", "severityToHex", "scoreToColor", "scoreToHex", "scoreToLabel"],
+        "tests": 18
+      },
+      "documentParserHelpers": {
+        "functions": ["getFileMetadata", "truncateForDisplay"],
+        "tests": 10
+      },
+      "edgeCases": {
+        "tests": 4
+      }
+    },
+    "totalTests": 32,
+    "scripts": {
+      "watch": "npm test",
+      "ci": "npm run test:run"
+    }
+  },
+
+  "accessibility": {
+    "standard": "WCAG 2.1 Level AA",
+    "features": [
+      "Skip navigation links",
+      "ARIA landmarks and roles",
+      "ARIA labels on icon-only buttons",
+      "Focus-visible outlines",
+      "Minimum 4.5:1 colour contrast ratio",
+      "Screen-reader loading announcements",
+      "Semantic HTML throughout"
+    ]
+  },
+
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "eslint ."
+  },
+
+  "environment": {
+    "nodeVersion": ">=18.0.0",
+    "npmVersion": ">=9.0.0",
+    "variables": [
+      {
+        "name": "VITE_GROQ_API_KEY",
+        "required": true,
+        "description": "Groq API key (obtain free from console.groq.com)"
+      },
+      {
+        "name": "VITE_GROQ_API_URL",
+        "required": false,
+        "default": "https://api.groq.com/openai/v1/chat/completions",
+        "description": "Groq API endpoint"
+      },
+      {
+        "name": "VITE_GROQ_MODEL",
+        "required": false,
+        "default": "openai/gpt-oss-120b",
+        "description": "Model identifier passed to the Groq API"
+      }
+    ]
+  },
+
+  "deployment": {
+    "type": "static",
+    "outputDir": "dist",
+    "platforms": ["Vercel", "Netlify", "Docker + nginx"],
+    "buildCommand": "npm run build"
+  },
+
+  "disclaimer": "LexAI provides informational assistance only and is not a substitute for professional legal advice. Always consult a qualified attorney for decisions with legal consequences."
+}
