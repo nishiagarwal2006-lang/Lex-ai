@@ -1,5 +1,7 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Lightbulb } from 'lucide-react';
+import PropTypes from 'prop-types';
 import GlassCard from '../ui/GlassCard.jsx';
 import RiskBadge from '../ui/RiskBadge.jsx';
 import SkeletonLoader from '../ui/SkeletonLoader.jsx';
@@ -108,6 +110,15 @@ function RiskItem({ risk, index }) {
 }
 
 export default function RiskAnalysis({ data, loading }) {
+  const riskCounts = useMemo(() => {
+    if (!data?.risks) return { high: 0, medium: 0, low: 0 };
+    return {
+      high:   data.risks.filter(r => r.severity === 'HIGH').length,
+      medium: data.risks.filter(r => r.severity === 'MEDIUM').length,
+      low:    data.risks.filter(r => r.severity === 'LOW').length,
+    };
+  }, [data]);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -124,7 +135,7 @@ export default function RiskAnalysis({ data, loading }) {
   return (
     <div className="space-y-6">
       <GlassCard className="flex flex-col items-center justify-center gap-6 md:flex-row md:justify-around" tilt>
-        <RiskMeter score={data.overallRiskScore || 0} level={data.riskLevel || 'LOW'} />
+        <RiskMeter score={data.overallRiskScore ?? 0} level={data.riskLevel || 'LOW'} />
         <div className="max-w-md text-center md:text-left">
           <h3 className="font-heading text-2xl font-bold text-text-primary">Risk Overview</h3>
           <p className="mt-2 text-sm text-text-secondary">
@@ -132,18 +143,33 @@ export default function RiskAnalysis({ data, loading }) {
             this document. Review each finding below and follow the recommendations.
           </p>
           <div className="mt-4 font-mono text-xs text-text-muted">
-            SCORE BREAKDOWN: {data.risks?.filter(r => r.severity === 'HIGH').length || 0} HIGH /{' '}
-            {data.risks?.filter(r => r.severity === 'MEDIUM').length || 0} MEDIUM /{' '}
-            {data.risks?.filter(r => r.severity === 'LOW').length || 0} LOW
+            SCORE BREAKDOWN: {riskCounts.high} HIGH /{' '}
+            {riskCounts.medium} MEDIUM /{' '}
+            {riskCounts.low} LOW
           </div>
         </div>
       </GlassCard>
 
       <div className="space-y-4">
         {data.risks?.map((risk, i) => (
-          <RiskItem key={i} risk={risk} index={i} />
+          <RiskItem key={`${risk.category}-${i}`} risk={risk} index={i} />
         ))}
       </div>
     </div>
   );
 }
+
+RiskAnalysis.propTypes = {
+  data: PropTypes.shape({
+    overallRiskScore: PropTypes.number,
+    riskLevel: PropTypes.string,
+    risks: PropTypes.arrayOf(PropTypes.shape({
+      category: PropTypes.string,
+      severity: PropTypes.string,
+      clause: PropTypes.string,
+      explanation: PropTypes.string,
+      recommendation: PropTypes.string,
+    })),
+  }),
+  loading: PropTypes.bool,
+};

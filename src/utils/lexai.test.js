@@ -1,5 +1,5 @@
 // Comprehensive test suite for LexAI utility layer.
-// Covers: riskScorer helpers and documentParser utilities.
+// Covers: riskScorer, documentParser, grokService helpers (sanitiseText, escapeHtml).
 import { describe, it, expect } from 'vitest';
 import {
   severityToColor, severityToHex,
@@ -8,6 +8,7 @@ import {
 import {
   getFileMetadata, truncateForDisplay,
 } from './documentParser.js';
+import { sanitiseText, escapeHtml } from '../services/grokService.js';
 
 // ── riskScorer ─────────────────────────────────────────────────────────────
 
@@ -19,13 +20,14 @@ describe('severityToColor', () => {
   it('handles lowercase input',                () => expect(severityToColor('high')).toBe('risk-high'));
   it('handles mixed case input',               () => expect(severityToColor('Medium')).toBe('risk-medium'));
   it('handles null / undefined gracefully',    () => expect(severityToColor(null)).toBe('risk-medium'));
+  it('handles undefined gracefully',           () => expect(severityToColor(undefined)).toBe('risk-medium'));
 });
 
 describe('severityToHex', () => {
-  it('returns red hex for HIGH',   () => expect(severityToHex('HIGH')).toBe('#ff2d55'));
-  it('returns amber hex for MEDIUM', () => expect(severityToHex('MEDIUM')).toBe('#ff9f0a'));
-  it('returns green hex for LOW',  () => expect(severityToHex('LOW')).toBe('#30d158'));
-  it('returns amber for unknown',  () => expect(severityToHex('XYZ')).toBe('#ff9f0a'));
+  it('returns red hex for HIGH',    () => expect(severityToHex('HIGH')).toBe('#ff2d55'));
+  it('returns amber hex for MEDIUM',() => expect(severityToHex('MEDIUM')).toBe('#ff9f0a'));
+  it('returns green hex for LOW',   () => expect(severityToHex('LOW')).toBe('#30d158'));
+  it('returns amber for unknown',   () => expect(severityToHex('XYZ')).toBe('#ff9f0a'));
 });
 
 describe('scoreToColor', () => {
@@ -58,14 +60,12 @@ describe('getFileMetadata', () => {
   });
 
   it('calculates reading time (ceil at 200 wpm)', () => {
-    // 200 words => 1 min
     const text = Array(200).fill('word').join(' ');
     const { readingTime } = getFileMetadata(text);
     expect(readingTime).toBe(1);
   });
 
   it('reading time rounds up', () => {
-    // 201 words => 2 min
     const text = Array(201).fill('word').join(' ');
     const { readingTime } = getFileMetadata(text);
     expect(readingTime).toBe(2);
@@ -114,5 +114,98 @@ describe('getFileMetadata whitespace handling', () => {
   it('ignores extra whitespace', () => {
     const { wordCount } = getFileMetadata('  hello   world  ');
     expect(wordCount).toBe(2);
+  });
+});
+
+// ── sanitiseText ───────────────────────────────────────────────────────────
+
+describe('sanitiseText', () => {
+  it('returns empty string for non-string input', () => {
+    expect(sanitiseText(null)).toBe('');
+    expect(sanitiseText(undefined)).toBe('');
+    expect(sanitiseText(42)).toBe('');
+    expect(sanitiseText({})).toBe('');
+  });
+
+  it('trims leading and trailing whitespace', () => {
+    expect(sanitiseText('  hello  ')).toBe('hello');
+  });
+
+  it('strips null bytes', () => {
+    // \0 is removed entirely — adjacent words close up
+    expect(sanitiseText('hello\0world')).toBe('helloworld');
+  });
+
+  it('strips non-printable control characters', () => {
+    // \x01 is a non-printable control character
+    expect(sanitiseText('hello\x01world')).toBe('helloworld');
+  });
+
+  it('preserves legitimate whitespace characters (tab → collapsed)', () => {
+    const result = sanitiseText('hello\t\tworld');
+    // two tabs collapse to a single space
+    expect(result).toBe('hello world');
+  });
+
+  it('preserves newlines (they are not in the stripped range)', () => {
+    const result = sanitiseText('line1\nline2');
+    expect(result).toContain('line1');
+    expect(result).toContain('line2');
+  });
+
+  it('truncates at 12 000 characters', () => {
+    const long = 'a'.repeat(15_000);
+    expect(sanitiseText(long).length).toBe(12_000);
+  });
+
+  it('does not truncate text shorter than 12 000 chars', () => {
+    const short = 'hello world';
+    expect(sanitiseText(short)).toBe('hello world');
+  });
+
+  it('handles empty string', () => {
+    expect(sanitiseText('')).toBe('');
+  });
+});
+
+// ── escapeHtml ────────────────────────────────────────────────────────────
+
+describe('escapeHtml', () => {
+  it('escapes ampersand', () => {
+    expect(escapeHtml('a & b')).toBe('a &amp; b');
+  });
+
+  it('escapes less-than', () => {
+    expect(escapeHtml('<script>')).toBe('&lt;script&gt;');
+  });
+
+  it('escapes greater-than', () => {
+    expect(escapeHtml('1 > 0')).toBe('1 &gt; 0');
+  });
+
+  it('escapes double quotes', () => {
+    expect(escapeHtml('"quoted"')).toBe('&quot;quoted&quot;');
+  });
+
+  it('escapes single quotes', () => {
+    expect(escapeHtml("it's")).toBe('it&#39;s');
+  });
+
+  it('escapes a full XSS payload', () => {
+    const xss = '<img src=x onerror="alert(1)">';
+    const result = escapeHtml(xss);
+    expect(result).not.toContain('<img');
+    expect(result).not.toContain('>');
+    expect(result).toContain('&lt;img');
+  });
+
+  it('returns empty string for non-string input', () => {
+    expect(escapeHtml(null)).toBe('');
+    expect(escapeHtml(undefined)).toBe('');
+    expect(escapeHtml(0)).toBe('');
+  });
+
+  it('does not modify safe text', () => {
+    expect(escapeHtml('hello world')).toBe('hello world');
   });
 });

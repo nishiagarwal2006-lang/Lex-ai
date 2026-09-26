@@ -1,20 +1,36 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './hooks/useAuthContext.jsx';
 import Navbar from './components/layout/Navbar.jsx';
 import Footer from './components/layout/Footer.jsx';
 import BackgroundOrbs from './components/layout/BackgroundOrbs.jsx';
-import Home from './pages/Home.jsx';
-import Analyze from './pages/Analyze.jsx';
-import Compare from './pages/Compare.jsx';
-import QA from './pages/QA.jsx';
+import Spinner from './components/ui/Spinner.jsx';
+import ErrorBoundary from './components/ui/ErrorBoundary.jsx';
 import ApiKeySetup from './components/ui/ApiKeySetup.jsx';
+
+// Lazy-load all route-level pages — each is code-split into its own chunk.
+// This keeps the initial JS bundle small and only loads what the user navigates to.
+const Home     = lazy(() => import('./pages/Home.jsx'));
+const Analyze  = lazy(() => import('./pages/Analyze.jsx'));
+const Compare  = lazy(() => import('./pages/Compare.jsx'));
+const QA       = lazy(() => import('./pages/QA.jsx'));
+const NotFound = lazy(() => import('./pages/NotFound.jsx'));
 
 /** True when the Groq API key is present and not a placeholder. */
 const hasApiKey = Boolean(
   import.meta.env.VITE_GROQ_API_KEY &&
   import.meta.env.VITE_GROQ_API_KEY !== 'your_groq_api_key_here'
 );
+
+/** Full-screen spinner shown during lazy-load transitions */
+function PageLoader() {
+  return (
+    <div className="flex min-h-[60vh] items-center justify-center" aria-label="Loading page">
+      <Spinner size="lg" />
+    </div>
+  );
+}
 
 export default function App() {
   return (
@@ -37,16 +53,21 @@ export default function App() {
           role="main"
           aria-label="LexAI application content"
         >
-          {hasApiKey ? (
-            <Routes>
-              <Route path="/"        element={<Home />}    />
-              <Route path="/analyze" element={<Analyze />} />
-              <Route path="/compare" element={<Compare />} />
-              <Route path="/qa"      element={<QA />}      />
-            </Routes>
-          ) : (
-            <ApiKeySetup />
-          )}
+          <ErrorBoundary>
+            {hasApiKey ? (
+              <Suspense fallback={<PageLoader />}>
+                <Routes>
+                  <Route path="/"        element={<Home />}     />
+                  <Route path="/analyze" element={<Analyze />}  />
+                  <Route path="/compare" element={<Compare />}  />
+                  <Route path="/qa"      element={<QA />}       />
+                  <Route path="*"        element={<NotFound />} />
+                </Routes>
+              </Suspense>
+            ) : (
+              <ApiKeySetup />
+            )}
+          </ErrorBoundary>
         </main>
 
         <Footer />

@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, FileText, Sparkles } from 'lucide-react';
+import PropTypes from 'prop-types';
 import GlassCard from '../ui/GlassCard.jsx';
 import Badge from '../ui/Badge.jsx';
 import SkeletonLoader from '../ui/SkeletonLoader.jsx';
@@ -35,9 +36,13 @@ export default function ClauseSummary({ data, loading }) {
 
   if (!data) return null;
 
-  const filteredClauses = activeTab === 'All'
-    ? data.clauses || []
-    : (data.clauses || []).filter(c => c.type === activeTab);
+  // Memoised — avoids re-filtering on every render that isn't a tab/data change
+  const filteredClauses = useMemo(
+    () => activeTab === 'All'
+      ? data.clauses || []
+      : (data.clauses || []).filter(c => c.type === activeTab),
+    [activeTab, data]
+  );
 
   return (
     <div className="space-y-6">
@@ -79,12 +84,13 @@ export default function ClauseSummary({ data, loading }) {
       )}
 
       {/* Type tabs */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by clause type">
         {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition-all ${
+            aria-pressed={activeTab === tab}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon-indigo ${
               activeTab === tab
                 ? 'bg-neon-indigo/20 text-neon-indigo border border-neon-indigo/30'
                 : 'text-text-secondary border border-white/5 hover:bg-white/5'

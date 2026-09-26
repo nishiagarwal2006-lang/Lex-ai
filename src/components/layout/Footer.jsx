@@ -37,7 +37,7 @@ export default function Footer() {
 
         <div className="mt-8 border-t border-white/5 pt-6 text-center">
           <p className="text-xs text-text-muted">
-            Powered by Grok-3 AI. Not a substitute for professional legal advice.
+            Powered by Groq AI. Not a substitute for professional legal advice.
           </p>
         </div>
       </div>

@@ -6,12 +6,45 @@ const MODEL    = import.meta.env.VITE_GROQ_MODEL    || 'openai/gpt-oss-120b';
 const API_KEY  = import.meta.env.VITE_GROQ_API_KEY  || '';
 
 /** Max chars sent per document — prevents token overrun */
-const MAX_CHARS = 12000;
+const MAX_CHARS = 12_000;
 
-/** Sanitise + truncate document text before sending to the model */
-function sanitiseText(text) {
+/** Max chars for a user question — prevents question-injection via padding */
+const MAX_QUESTION_CHARS = 500;
+
+/**
+ * Sanitise document text before sending to the model.
+ * - Strips null bytes and non-printable control characters.
+ * - Collapses runs of whitespace to a single space.
+ * - Hard-caps at MAX_CHARS.
+ * @param {string} text
+ * @returns {string}
+ */
+export function sanitiseText(text) {
   if (typeof text !== 'string') return '';
-  return text.trim().slice(0, MAX_CHARS);
+  return text
+    .replace(/\0/g, '')
+    // eslint-disable-next-line no-control-regex
+    .replace(/[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
+    .slice(0, MAX_CHARS);
+}
+
+/**
+ * Escape HTML entities in a string so AI output is safe to render as text.
+ * React renders text nodes safely by default, but this guards any future
+ * dangerouslySetInnerHTML usage elsewhere.
+ * @param {string} str
+ * @returns {string}
+ */
+export function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 /** Return a user-readable error message — never expose raw keys */
@@ -152,7 +185,7 @@ ${safeB}`;
 
 export async function askQuestion(documentText, question) {
   const safe = sanitiseText(documentText);
-  const safeQ = String(question || '').trim().slice(0, 500);
+  const safeQ = sanitiseText(String(question || '')).slice(0, MAX_QUESTION_CHARS);
   if (!safe)  throw new Error('Document text is empty.');
   if (!safeQ) throw new Error('Question cannot be empty.');
   const prompt = `You are a legal Q&A AI. Answer the user's question about the legal document below.

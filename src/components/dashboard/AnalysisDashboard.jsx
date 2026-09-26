@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Share2, FileText, AlignLeft, Layers, AlertTriangle, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PropTypes from 'prop-types';
 import RiskAnalysis from '../analysis/RiskAnalysis.jsx';
 import ClauseSummary from '../analysis/ClauseSummary.jsx';
 import ActionChecklist from '../analysis/ActionChecklist.jsx';
@@ -36,10 +37,14 @@ export default function AnalysisDashboard({
   const activeTab = externalTab || internalTab;
   const setActiveTab = onTabChange || setInternalTab;
 
-  const { wordCount, readingTime } = getFileMetadata(documentText);
-  const riskScore = riskData?.overallRiskScore || 0;
-  const riskHex = scoreToHex(riskScore);
+  const { wordCount, readingTime } = useMemo(
+    () => getFileMetadata(documentText),
+    [documentText]
+  );
+  const riskScore = riskData?.overallRiskScore ?? 0;
+  const riskHex = useMemo(() => scoreToHex(riskScore), [riskScore]);
   const riskLabel = riskData?.riskLevel || scoreToLabel(riskScore);
+
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success('Link copied to clipboard');
@@ -75,12 +80,16 @@ export default function AnalysisDashboard({
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-white/5">
+      <div className="flex gap-1 border-b border-white/5" role="tablist" aria-label="Analysis sections">
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            role="tab"
+            id={`tab-${tab.id}`}
+            aria-selected={activeTab === tab.id}
+            aria-controls={`panel-${tab.id}`}
             onClick={() => setActiveTab(tab.id)}
-            className={`relative px-4 py-3 text-sm font-medium transition-all ${
+            className={`relative px-4 py-3 text-sm font-medium transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon-indigo ${
               activeTab === tab.id
                 ? 'text-neon-indigo tab-active'
                 : 'text-text-secondary hover:text-text-primary'
@@ -95,6 +104,9 @@ export default function AnalysisDashboard({
       <AnimatePresence mode="wait">
         <motion.div
           key={activeTab}
+          role="tabpanel"
+          id={`panel-${activeTab}`}
+          aria-labelledby={`tab-${activeTab}`}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}

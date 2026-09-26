@@ -2,12 +2,22 @@ import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion } from 'framer-motion';
 import { UploadCloud, FileText, X } from 'lucide-react';
+import PropTypes from 'prop-types';
+import toast from 'react-hot-toast';
+
+/** 10 MB hard cap — prevents browser OOM on huge files */
+const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
 export default function DocumentUpload({ onFileParsed, fileName, onClear, parsing }) {
   const onDrop = useCallback(
     (acceptedFiles) => {
       const file = acceptedFiles[0];
-      if (file) onFileParsed(file);
+      if (!file) return;
+      if (file.size > MAX_FILE_BYTES) {
+        toast.error('File too large. Maximum size is 10 MB.');
+        return;
+      }
+      onFileParsed(file);
     },
     [onFileParsed]
   );
@@ -20,6 +30,7 @@ export default function DocumentUpload({ onFileParsed, fileName, onClear, parsin
       'text/plain': ['.txt'],
     },
     maxFiles: 1,
+    maxSize: MAX_FILE_BYTES,
     disabled: parsing,
   });
 
@@ -73,12 +84,21 @@ export default function DocumentUpload({ onFileParsed, fileName, onClear, parsin
           </div>
           <button
             onClick={onClear}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary transition-all hover:bg-white/5 hover:text-risk-high"
+            aria-label="Remove document"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary transition-all hover:bg-white/5 hover:text-risk-high focus-visible:outline focus-visible:outline-2 focus-visible:outline-neon-indigo"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </motion.div>
       )}
     </div>
   );
 }
+
+DocumentUpload.propTypes = {
+  onFileParsed: PropTypes.func.isRequired,
+  fileName: PropTypes.string,
+  onClear: PropTypes.func.isRequired,
+  parsing: PropTypes.bool,
+};
+
